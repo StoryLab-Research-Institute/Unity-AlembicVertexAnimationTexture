@@ -1,0 +1,16 @@
+{
+  "name": "storylabaru.alembicvat",
+  "version": "0.1.0",
+  "displayName": "StoryLabARU Alembic VAT",
+  "description": "This package converts an animated Alembic ",
+  "unity": "2021.3",
+  "unityRelease": "4f1",
+  "dependencies": {
+    "com.unity.formats.alembic": "2.2.2"
+ },
+  "author": {
+    "name": "Chris Nightingale",
+    "email": "StoryLab@aru.ac.uk",
+    "url": "storylabresearch.com"
+  }
+}
