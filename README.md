@@ -21,7 +21,7 @@ An altered mesh file is also produced, in which the second UV channel is used to
 A shader reads the data in the texture file in the vertex stage and applies the appropriate offsets to the position and normals of the vertices.
 
 ## Installation
-Install via Package Manager (https://github.com/CN41ARU/StorylabARU_AlembicVAT.git)
+Install via Package Manager (https://github.com/StoryLab-Research-Institute/AlembicVertexAnimationTexture.git)
 
 ## Usage
 The utility is available under Window > Alembic VAT Baker.
