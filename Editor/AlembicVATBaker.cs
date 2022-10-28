@@ -5,22 +5,28 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Formats.Alembic.Importer;
 
-namespace StoryLabARU.AlembicVAT
+namespace StoryLabResearch.AlembicVAT
 {
     public class AlembicVATBaker : ScriptableObject
     {
+        #region Exposed properties
         public MeshFilter TargetMeshFilter;
         public AlembicStreamPlayer TargetAlembicStreamPlayer;
 
-        public string OutputPath { get { return _outputPath; } set { _outputPath = value; UpdateFilePaths(); } }
+        // update the file paths whenever the output path or name are changed
+        public string OutputPath { get { return _outputPath; } set { if (value != _outputPath) { _outputPath = value; UpdateFilePaths(); } } }
         private string _outputPath = "";
-        public string OutputName { get { return _outputName; } set { _outputName = value; UpdateFilePaths(); } }
+        public string OutputName { get { return _outputName; } set { if (value != _outputName) { _outputName = value; UpdateFilePaths(); } } }
         private string _outputName = "";
 
-        public float FrameRate = 15f;
+        public float FrameRate { get; set; } = 15f;
+        // refs required by GUISlider, hence fields not properties
         public float StartTime;
         public float EndTime;
+        #endregion
 
+        #region Generated file paths
+        // exposed for GUI use
         public string MeshPath { get; private set; }
         public bool MeshExists { get; private set; }
         public string MotionTexturePath { get; private set; }
@@ -31,11 +37,15 @@ namespace StoryLabARU.AlembicVAT
         public bool MaterialExists { get; private set; }
         public string PrefabPath { get; private set; }
         public bool PrefabExists { get; private set; }
+        #endregion
 
+        #region Shader consts
         private const string _shaderName = "StoryLabARU/VAT/PlaceholderAutoVAT";
         private const string _shaderMotionTextureFieldReference = "_VAT_MotionTex";
         private const string _shaderNormalTextureFieldReference = "_VAT_NormalTex";
+        #endregion
 
+        #region Public methods
         /// <summary>
         /// Generate a prefab asset containing an animated mesh, baked from the target MeshFilter
         /// </summary>
@@ -69,6 +79,63 @@ namespace StoryLabARU.AlembicVAT
             DestroyImmediate(prefab);
         }
 
+        private void UpdateFilePaths()
+        {
+            // the "_...Exists" booleans are only used as a cache for the GUI, to prevent IO operations every GUI update
+            // the paths are checked again immediately before saving each asset
+            if (!string.IsNullOrWhiteSpace(_outputName))
+            {
+                MeshPath = Path.Combine("Assets", _outputPath, "Model", $"{_outputName}_mesh.asset");
+                MeshExists = File.Exists(MeshPath);
+
+                MotionTexturePath = Path.Combine("Assets", _outputPath, "Material", $"{_outputName}_motion.asset");
+                MotionTextureExists = File.Exists(MotionTexturePath);
+
+                NormalTexturePath = Path.Combine("Assets", _outputPath, "Material", $"{_outputName}_normal.asset");
+                NormalTextureExists = File.Exists(NormalTexturePath);
+
+                MaterialPath = Path.Combine("Assets", _outputPath, "Material", $"{_outputName}_mat.mat");
+                MaterialExists = File.Exists(MaterialPath);
+
+                PrefabPath = Path.Combine("Assets", _outputPath, $"{_outputName}.prefab");
+                PrefabExists = File.Exists(PrefabPath);
+            }
+            else
+            {
+                MeshExists = false;
+                MotionTextureExists = false;
+                NormalTextureExists = false;
+                MaterialExists = false;
+                PrefabExists = false;
+            }
+        }
+
+        /// <summary>
+        /// Check the Target Mesh Filter's parents for an Alembic Stream Player
+        /// </summary>
+        /// <returns>An Alembic Stream Player if found, otherwise null</returns>
+        public void UpdateAlembicStreamPlayer()
+        {
+            TargetAlembicStreamPlayer = null;
+            if (TargetMeshFilter != null)
+            {
+                Transform parent = TargetMeshFilter.transform.parent;
+                while (parent != null)
+                {
+                    TargetAlembicStreamPlayer = parent.GetComponent<AlembicStreamPlayer>();
+                    if (TargetAlembicStreamPlayer != null)
+                    {
+                        StartTime = 0;
+                        EndTime = TargetAlembicStreamPlayer.Duration;
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+            }
+        }
+        #endregion
+
+        #region Private methods
         /// <returns>True if all parameters pass basic sanity checks, false otherwise</returns>
         private bool Validate()
         {
@@ -95,7 +162,7 @@ namespace StoryLabARU.AlembicVAT
             // fill the second UV channel of the mesh copy with the x coordinate of the resulting texture for that vertex to sample
             // offset the coordinate to the centre of the pixel, to ensure consistency with interpolated sampling modes
             Vector2[] uv = new Vector2[vertexCount];
-            for (int i = 0; i < vertexCount; i++) uv[i] = new Vector2((i + .5f) / vertexCount, 1f);
+            for (int i = 0; i < vertexCount; i++) uv[i] = new Vector2((i + .5f) / vertexCount, 0f);
             mesh.SetUVs(1, uv);
 
             return mesh;
@@ -234,36 +301,6 @@ namespace StoryLabARU.AlembicVAT
                 AssetDatabase.CreateAsset(asset, path);
             }
         }
-
-        private void UpdateFilePaths()
-        {
-            // the "_...Exists" booleans are only used as a cache for the GUI, to prevent checking the file paths every GUI update
-            // the paths are checked again immediately before saving each asset
-            if (!string.IsNullOrWhiteSpace(_outputName))
-            {
-                MeshPath = Path.Combine("Assets", _outputPath, $"{_outputName}_mesh.asset");
-                MeshExists = File.Exists(MeshPath);
-
-                MotionTexturePath = Path.Combine("Assets", _outputPath, $"{_outputName}_motion.asset");
-                MotionTextureExists = File.Exists(MotionTexturePath);
-
-                NormalTexturePath = Path.Combine("Assets", _outputPath, $"{_outputName}_normal.asset");
-                NormalTextureExists = File.Exists(NormalTexturePath);
-
-                MaterialPath = Path.Combine("Assets", _outputPath, $"{_outputName}_mat.mat");
-                MaterialExists = File.Exists(MaterialPath);
-
-                PrefabPath = Path.Combine("Assets", _outputPath, $"{_outputName}.prefab");
-                PrefabExists = File.Exists(PrefabPath);
-            }
-            else
-            {
-                MeshExists = false;
-                MotionTextureExists = false;
-                NormalTextureExists = false;
-                MaterialExists = false;
-                PrefabExists = false;
-            }
-        }
+        #endregion
     }
 }

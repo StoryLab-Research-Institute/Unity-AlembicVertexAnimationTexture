@@ -1,8 +1,7 @@
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Formats.Alembic.Importer;
 
-namespace StoryLabARU.AlembicVAT
+namespace StoryLabResearch.AlembicVAT
 {
     public class AlembicVATBakerWindow : EditorWindow
     {
@@ -11,35 +10,37 @@ namespace StoryLabARU.AlembicVAT
 
         private bool m_automaticOutputName = true;
 
-        [MenuItem("Window/Alembic VAT Baker")]
+        [MenuItem("StoryLabResearch/Alembic VAT Baker")]
         public static void ShowWindow() => GetWindow(typeof(AlembicVATBakerWindow));
 
         public void OnGUI()
         {
+            // === GUI BAKE BUTTON REGION ===
             // we check this every time round because actions such as entering or exiting playmode can destroy these instances
             if (m_baker == null) m_baker = CreateInstance<AlembicVATBaker>();
-            // create a serialization of the generator for the GUI to be able to access property fields
+            // create a serialization of the generator sot he GUI can access property fields
             if (m_serializedBaker == null || m_serializedBaker.targetObject == null) m_serializedBaker = new SerializedObject(m_baker);
 
-            // ignoring nasty conditional for now since we don't have an implementation for the full model workflow yet
+            // only enable the bake button if we have a valid target
             GUI.enabled = m_baker.TargetMeshFilter != null && m_baker.TargetAlembicStreamPlayer != null;
             if (GUILayout.Button("Bake", GUILayout.Height(32))) m_baker.Bake();
             GUI.enabled = true;
 
             EditorGUILayout.Space();
 
-            // === mesh selection region ===
+            // === GUI MESH SELECTION REGION ===
+            // store current target mesh filter reference for comparison
             MeshFilter lastTargetMeshFilter = m_baker.TargetMeshFilter;
             EditorGUILayout.PropertyField(m_serializedBaker.FindProperty(nameof(m_baker.TargetMeshFilter)));
 
             // set the properties on the object the serializedobject is inspecting
             m_serializedBaker.ApplyModifiedProperties();
 
-            // if the selected meshfilter has changed...
+            // if the selected meshfilter has been changed...
             if (lastTargetMeshFilter != m_baker.TargetMeshFilter)
             {
-                UpdateAlembicStreamPlayer();
-                if (m_automaticOutputName) m_baker.OutputName = m_baker.TargetMeshFilter.name;
+                if (m_automaticOutputName && m_baker.TargetMeshFilter != null) m_baker.OutputName = m_baker.TargetMeshFilter.name;
+                m_baker.UpdateAlembicStreamPlayer();
             }
 
             // if the selected mesh filter is not a child of an Alemic Stream Player (or does not exist)...
@@ -49,19 +50,21 @@ namespace StoryLabARU.AlembicVAT
                 return;
             }
 
+            // === GUI BAKING SETTINGS REGION ===
             // if we have a valid target meshfilter with an Alembic Stream Player parent...
+            // (note we have already returned if we do not have a player)
             if (m_baker.TargetMeshFilter != null)
             {
                 // we have a valid mesh which is a part of an Alembic model!
 
                 EditorGUILayout.Space();
 
-                // === framerate region ===
+                // === GUI FRAMERATE REGION ===
                 m_baker.FrameRate = EditorGUILayout.Slider("Frame Rate", m_baker.FrameRate, .1f, 60f);
 
                 EditorGUILayout.Space();
 
-                // === time range region ===
+                // === GUI TIME RANGE REGION ===
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.PrefixLabel("Time Range (s)");
                 EditorGUIUtility.labelWidth = 35f;
@@ -74,7 +77,7 @@ namespace StoryLabARU.AlembicVAT
 
                 EditorGUILayout.Space();
 
-                // === output region ===
+                // === GUI OUTPUT REGION ===
                 m_baker.OutputPath = EditorGUILayout.TextField("Output folder", m_baker.OutputPath);
                 GUI.enabled = !m_automaticOutputName;
                 m_baker.OutputName = EditorGUILayout.TextField("Output name", m_baker.OutputName);
@@ -87,28 +90,6 @@ namespace StoryLabARU.AlembicVAT
                 if (m_baker.NormalTextureExists) EditorGUILayout.HelpBox($"A normal texture already exists at {m_baker.NormalTexturePath}", MessageType.Info);
                 if (m_baker.MaterialExists) EditorGUILayout.HelpBox($"A material already exists at {m_baker.MaterialPath}", MessageType.Info);
                 if (m_baker.PrefabExists) EditorGUILayout.HelpBox($"A prefab already exists at {m_baker.PrefabPath}", MessageType.Info);
-            }
-        }
-
-        private void UpdateAlembicStreamPlayer()
-        {
-            // check the meshfilter's parents for an Alembic Stream Player
-            // set the AlembicStreamPlayer to null initially so if the TargetMeshFilter is null or if we never find an AlembicStreamPlayer we can return null
-            m_baker.TargetAlembicStreamPlayer = null;
-            if (m_baker.TargetMeshFilter != null)
-            {
-                Transform parent = m_baker.TargetMeshFilter.transform.parent;
-                while (parent != null)
-                {
-                    m_baker.TargetAlembicStreamPlayer = parent.GetComponent<AlembicStreamPlayer>();
-                    if (m_baker.TargetAlembicStreamPlayer != null)
-                    {
-                        m_baker.StartTime = 0;
-                        m_baker.EndTime = m_baker.TargetAlembicStreamPlayer.Duration;
-                        break;
-                    }
-                    parent = parent.parent;
-                }
             }
         }
     }
