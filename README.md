@@ -34,6 +34,11 @@ Add an Alembic model to the open scene, then drop the mesh you wish to generate 
  - A normals texture
  - A prefab with the mesh with material applied
 
+## Intended development
+ - Shaders for BRP and HDRP
+ - Workflow to allow the baking of multi-mesh Alembic models
+ - Setting to toggle adoption of parent scale and heirarchy (?)
+
 ## Limitations
 The animation texture file sizes are relatively large. This can be reduced by reducing the framerate of the baked textures (15 frames per second is typically sufficient) and allowing the interpolation to fill in the gaps, or by reducing the geometry of the model before importing. The file size of the textures produced can be calculated as:
 > mesh vertices * frames * 8 (bytes)
