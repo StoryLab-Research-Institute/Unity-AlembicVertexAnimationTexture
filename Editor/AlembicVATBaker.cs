@@ -40,7 +40,7 @@ namespace StoryLabResearch.AlembicVAT
         #endregion
 
         #region Shader consts
-        private const string _shaderName = "StoryLabARU/VAT/PlaceholderAutoVAT";
+        private const string _shaderName = "StoryLabResearch/VAT/TemplateVAT";
         private const string _shaderMotionTextureFieldReference = "_VAT_MotionTex";
         private const string _shaderNormalTextureFieldReference = "_VAT_NormalTex";
         #endregion
@@ -187,6 +187,9 @@ namespace StoryLabResearch.AlembicVAT
             Color[] motionColors = new Color[vertexCount * frames];
             Color[] normalColors = new Color[vertexCount * frames];
 
+            // store cyclerate rather than framerate to minimise work done in shader
+            float cycleRate = 1 / (EndTime - StartTime);
+
             // limit the threads to the number of logical processors
             ParallelOptions options = new() { MaxDegreeOfParallelism = Environment.ProcessorCount };
 
@@ -212,8 +215,8 @@ namespace StoryLabResearch.AlembicVAT
 
                     // motion
                     Vector4 offset = vertices[v] - originVertices[v];
-                    // store framerate in every pixel of motion alpha so we don't need to do any sample position calculations in the shader
-                    offset.w = FrameRate;
+                    // store pixelsPerSecond in every pixel of motion alpha so we don't need to do any sample position calculations in the shader
+                    offset.w = cycleRate;
                     motionColors[v + (frame * vertexCount)] = offset;
 
                     // normal
