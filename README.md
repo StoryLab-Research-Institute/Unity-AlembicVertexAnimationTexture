@@ -44,7 +44,7 @@ Add an Alembic model to the open scene, then drop the mesh you wish to generate 
 
 ### Properties
  - Target Mesh Filter: The child mesh of the Alembic model to bake
- - Frame Rate: The framerate at which the animation will be baked. Note that you can often set this relatively low to save file size, because of the free frame interpolation provided by the shader
+ - Frame Rate: The framerate at which the animation will be baked. Note that you can often set this relatively low to save file size, because of the free frame interpolation provided by the shader. From experimentation, 15FPS is sufficient for most uses. Rates above 60FPS are not recommended due to large file sizes
  - Time range: The region of the Alembic animation to bake. This may be useful if you have several different animations in sequence in your Alembic file.
  - Bake vertex normals: By default, both the motion and the surface normal of the vertices will be baked into animation textures. If your model will be unlit (or if the range of motion is very small) you can save file size and shader complexity by disabling this option
  - Output folder: Folder (within the Assets folder) to save the resulting files to. Sub-folders will be created in this location for the material and model files.
@@ -69,12 +69,12 @@ Unless you select the "Textures only" checkbox, it will also output:
 As the animation is sampled from a texture, you can change the way the animation is played back by changing the properties on the generated texture assets. You probably want to use the same settings for both the motion and the normal animation texture.
 
 Key notes:
-- Filter mode can be used to enable frame interpolation. If you want to play back the animation exactly as it is recorded (e.g. for stylised low-framerate animations), you may wish to set this to "point" - otherwise, set it to "Bilinear" for interpolated playback
+- Filter mode can be used to enable frame interpolation. If you want to play back the animation exactly as it is recorded (e.g. for stylised low-framerate animations), you may wish to set this to "Point" - otherwise, set it to "Bilinear" for interpolated playback
 - Wrap mode can be used to control looping of the animation. If you combine "Repeat" wrap mode with "Bilinear" filter mode (as is default), the animation will automatically interpolate between the last and first sample, creating a seamless loop. Alternatively, use "Mirror" wrap mode to ping-pong the animation
 - If you want your animation to interpolate but not loop, for example if you have a manually controlled animiation with very different start and end states, you will probably want to set wrap mode to "Clamp", so that the last and first samples do not interpolate
  
 ### Shader properties
-For simplicity, a single subshader provides the entire tuntime animation system. This shader can be controlled using keywords to enable or diasble features as required, and can be added to your own shaders to introduce motion to them. This does, however, mean that the material properties window is somewhat cluttered even for a simple shader which does not make use of most of these properties.
+For simplicity, a single subshader provides the entire runtime animation system. This shader can be controlled using keywords to enable or diasble features as required, and can be added to your own shaders to introduce motion to them. This does, however, mean that the material properties window is somewhat cluttered even for a simple shader which does not make use of most of these properties.
 
 Key notes:
  - Secondary motion properties (suffixed with "2") are only used if the "VAT_UseBlend" keyword is active. When "VAT_UseBlend" is active, you can blend between the primary and secondary animation using the "VAT_BlendFactor" property. Of course, when this keyword is active, the complexity of the shader is doubled
@@ -86,15 +86,15 @@ Key notes:
 A subshader is provided to allow you to add motion to your own shaders. If you name the appropriate properties on your custom shader the same as they are named in the subshader, you should be able to swap the placeholder shader on the generated material for your own, and the animation will carry across properly. To make this easier (so you don't need to copy and paste every property), an empty template shader is provided in *Packages/StoryLabResearch Alembic VAT/Runtime/Shaders/TemplateVAT* for you to duplicate and modify with the features you require.
  
 ## Mechanism
-The utility produces textures to represent the animation as offsets from the rest position of the mesh (taken to be at time = 0). The columns of the texture files represent the vertices. The rows represent frames of animation. Offsets are stored as X, Y, Z = R, G, B. The animation cycle rate is stored in every pixel of the alpha channel of the motion texture, and is sampled in the shader at (0, 0) (for every vertex). Similarly, vertex normals are baked as differences from the rest vector. 
+The utility produces textures to represent the animation as offsets of each vertex from its rest position (taken to be its position at time = 0). The columns of the texture files represent the vertices. The rows represent frames of animation. Offsets are stored as X, Y, Z = R, G, B. Similarly, vertex normals are baked as differences from the rest vector. The animation cycle rate is stored in every pixel of the alpha channel of the motion texture, and is sampled in the shader at (0, 0).
 
 The texture format is RGBAHalf. This format is not subject to sRGB colour correction, and provides decent precision. It is also not clamped to 0-1, so offsets can range from -65504 to 65504 metres, reducing in precision with distance from the origin. It's an uncompressed 2D array of half-precision floats, you know how they work.
 
-An altered mesh file is also produced, in which the second UV channel (UV1) is used to store the vertex's column location in the animation texture. This is hard-coded in the shader and canot be switched by keywords - if you require this channel for something else, you will need to create a duplicate shader.
+An altered mesh file is also produced, in which the second UV channel (UV1) is used to store the vertex's column location in the animation texture. This is hard-coded in the shader and canot be switched by keywords - if you require this channel for something else, you will need to create a duplicate of the VAT sub-graph with a different channel.
 
 A shader reads the data in the texture file in the vertex stage and applies the appropriate offsets to the position and normals of the vertices. The shader uses keywords to generate an appropriate shader variant. To reduce complexity, the shader uses the cycle rate from the motion texture for the corresponsing normal texture.
 
-Because the animation is sampled from a texture, we can get some very nice features for free - for instance, by sampling the texture with linear interpolation, we get free frame interpolation, meaning that the animation will always play smoothly regardless of the recorded framerate (though obviously with some loss of fidelity at very low baked framerates). For example, an animation texture baked at 15FPS will play back quit happily at 400FPS.
+Because the animation is sampled from a texture, we can get some very nice features for free - for instance, by sampling the texture with linear interpolation, we get free frame interpolation, meaning that the animation will always play smoothly regardless of the recorded framerate (though obviously with some loss of fidelity at very low baked framerates). For example, an animation texture baked at 15FPS will play back quite happily at 400FPS. If the texture wrap mode is set to Repeat, it will interpolate between the first and last pixels of the texture, creating seamless loops.
 
 The animation texture file sizes are relatively large. This can be reduced by reducing the framerate of the baked textures (15 frames per second is typically sufficient) and allowing the interpolation to fill in the gaps, or by reducing the geometry of the model before importing. The file size of the textures produced can be calculated as:
 > mesh vertices * frames * 8 (bytes)
