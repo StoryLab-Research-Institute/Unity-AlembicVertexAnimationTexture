@@ -35,7 +35,7 @@ This system is great for cases where:
 A good example (and the case for which I created the system in the first place) is a looped animation of the fabric of a tent flapping in the wind, which can then be blended into an animation of the tent flying off in the air.
 
 ## Installation
-Install via Package Manager (https://github.com/StoryLab-Research-Institute/AlembicVertexAnimationTexture.git)
+Install via Package Manager (https://github.com/StoryLab-Research-Institute/Unity-AlembicVertexAnimationTexture.git)
 
 ## Usage
 The utility is available under StoryLabResearch > Alembic VAT Baker.
