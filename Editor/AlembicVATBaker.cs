@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Formats.Alembic.Importer;
+using UnityEngine.Rendering;
 
 namespace StoryLabResearch.AlembicVAT
 {
@@ -13,11 +14,14 @@ namespace StoryLabResearch.AlembicVAT
         public MeshFilter TargetMeshFilter;
         public AlembicStreamPlayer TargetAlembicStreamPlayer;
 
+        public bool includeNormals = true;
+
         // update the file paths whenever the output path or name are changed
         public string OutputPath { get { return _outputPath; } set { if (value != _outputPath) { _outputPath = value; UpdateFilePaths(); } } }
         private string _outputPath = "";
         public string OutputName { get { return _outputName; } set { if (value != _outputName) { _outputName = value; UpdateFilePaths(); } } }
         private string _outputName = "";
+        public bool TexturesOnly { get; set; } = false;
 
         public float FrameRate { get; set; } = 15f;
         // refs required by GUISlider, hence fields not properties
@@ -43,6 +47,9 @@ namespace StoryLabResearch.AlembicVAT
         private const string _shaderName = "StoryLabResearch/VAT/TemplateVAT";
         private const string _shaderMotionTextureFieldReference = "_VAT_MotionTex";
         private const string _shaderNormalTextureFieldReference = "_VAT_NormalTex";
+        private const string _shaderNormalsKeywordReference = "_VAT_USENORMALS";
+        private const string _shaderBlendKeywordReference = "_VAT_USEBLEND";
+        private const string _shaderAutoTimeKeywordReference = "_VAT_USEAUTOTIME";
         #endregion
 
         #region Public methods
@@ -56,27 +63,30 @@ namespace StoryLabResearch.AlembicVAT
 
             // generate and save a mesh with the second UV channel prepared
             var mesh = CreatePreparedMesh();
-            SaveAsset(mesh, MeshPath);
+            if (!TexturesOnly) SaveAsset(mesh, MeshPath);
 
             // generate and save the animation textures
             var texs = CreateVertexAnimationTextures(mesh);
             SaveAsset(texs[0], MotionTexturePath);
-            SaveAsset(texs[1], NormalTexturePath);
+            if(includeNormals) SaveAsset(texs[1], NormalTexturePath);
 
-            // generate and save the placeholder material
-            var mat = CreatePlaceholderMaterial(texs);
-            SaveAsset(mat, MaterialPath);
+            if (!TexturesOnly)
+            {
+                // generate and save the placeholder material
+                var mat = CreatePlaceholderMaterial(texs);
+                SaveAsset(mat, MaterialPath);
 
-            // refresh the asset database so the prefab can reference the assets correctly
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+                // refresh the asset database so the prefab can reference the assets correctly
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
 
-            // generate and save a prefab with the mesh and material set up
-            var prefab = CreatePrefab(mesh, mat);
-            SaveAsset(prefab, PrefabPath);
+                // generate and save a prefab with the mesh and material set up
+                var prefab = CreatePrefab(mesh, mat);
+                SaveAsset(prefab, PrefabPath);
 
-            // clean up
-            DestroyImmediate(prefab);
+                // clean up
+                DestroyImmediate(prefab);
+            }
         }
 
         private void UpdateFilePaths()
@@ -152,8 +162,12 @@ namespace StoryLabResearch.AlembicVAT
         /// <returns>A prepared mesh instance</returns>
         private Mesh CreatePreparedMesh()
         {
+
             // assume that time 0 is the model's rest position
             TargetAlembicStreamPlayer.UpdateImmediately(0f);
+
+            // if we are only generating textures and not the full prefab, just return the sharedmesh
+            if (TexturesOnly) return TargetMeshFilter.sharedMesh;
 
             // instantiate a copy of the target shared mesh - using _meshFilter.mesh creates warnings about memory leaks in editor mode
             Mesh mesh = Instantiate(TargetMeshFilter.sharedMesh);
@@ -220,23 +234,30 @@ namespace StoryLabResearch.AlembicVAT
                     motionColors[v + (frame * vertexCount)] = offset;
 
                     // normal
-                    Vector4 difference = normals[v] - originNormals[v];
-                    normalColors[v + (frame * vertexCount)] = difference;
+                    if (includeNormals)
+                    {
+                        Vector4 difference = normals[v] - originNormals[v];
+                        normalColors[v + (frame * vertexCount)] = difference;
+                    }
                 });
             }
 
             // a Texture2D as RGBAHalfs is an unclamped 2D array of half precision floats
 
             // setpixels invocation is slower than setpixels32, but we need an unclamped float range rather than ints in the 0-255 range
-            #pragma warning disable UNT0017 
+            #pragma warning disable UNT0017
 
             // save motion texture
             Texture2D motionTex = new(vertexCount, frames, TextureFormat.RGBAHalf, false);
             motionTex.SetPixels(0, 0, vertexCount, frames, motionColors);
 
-            // save normals texture
-            Texture2D normalTex = new(vertexCount, frames, TextureFormat.RGBAHalf, false);
-            normalTex.SetPixels(0, 0, vertexCount, frames, normalColors);
+            Texture2D normalTex = null;
+            if (includeNormals)
+            {
+                // save normals texture
+                normalTex = new(vertexCount, frames, TextureFormat.RGBAHalf, false);
+                normalTex.SetPixels(0, 0, vertexCount, frames, normalColors);
+            }
 
             // restore setpixels warning
             #pragma warning restore UNT0017
@@ -253,12 +274,27 @@ namespace StoryLabResearch.AlembicVAT
             Shader shad = Shader.Find(_shaderName);
             if (shad == null) throw new NullReferenceException($"Cannot find shader with name {_shaderName}");
             Material mat = new(shad);
+
+            // motion texture
             mat.SetTexture(_shaderMotionTextureFieldReference, textures[0]);
+
+            // normal motion texture
+            LocalKeyword normalsKeyword = new(shad, _shaderNormalsKeywordReference);
+            mat.SetKeyword(normalsKeyword, includeNormals);
             mat.SetTexture(_shaderNormalTextureFieldReference, textures[1]);
+            // note that if the normal texture is null we can just set it anyway
+
+            // disable blend
+            LocalKeyword blendKeyword = new(shad, _shaderBlendKeywordReference);
+            mat.SetKeyword(blendKeyword, false);
+
+            // enable autotime
+            LocalKeyword timeKeyword = new(shad, _shaderAutoTimeKeywordReference);
+            mat.SetKeyword(timeKeyword, true);
 
             return mat;
         }
-
+        
         /// <summary>
         /// Create a prefab with the mesh and placeholder material applied
         /// </summary>

@@ -16,10 +16,10 @@ namespace StoryLabResearch.AlembicVAT
         public void OnGUI()
         {
             // === GUI BAKE BUTTON REGION ===
-            // we check this every time round because actions such as entering or exiting playmode can destroy these instances
+            // we check this every time we draw the GUI because actions such as entering or exiting playmode can destroy these instances
             if (m_baker == null) m_baker = CreateInstance<AlembicVATBaker>();
-            // create a serialization of the generator sot he GUI can access property fields
-            if (m_serializedBaker == null || m_serializedBaker.targetObject == null) m_serializedBaker = new SerializedObject(m_baker);
+            // we need a serialization of the generator so the GUI can access serialized properties
+            if (m_serializedBaker == null || m_serializedBaker.targetObject == null || m_serializedBaker.targetObject != m_baker) m_serializedBaker = new SerializedObject(m_baker);
 
             // only enable the bake button if we have a valid target
             GUI.enabled = m_baker.TargetMeshFilter != null && m_baker.TargetAlembicStreamPlayer != null;
@@ -31,6 +31,7 @@ namespace StoryLabResearch.AlembicVAT
             // === GUI MESH SELECTION REGION ===
             // store current target mesh filter reference for comparison
             MeshFilter lastTargetMeshFilter = m_baker.TargetMeshFilter;
+            // update the target mesh filter
             EditorGUILayout.PropertyField(m_serializedBaker.FindProperty(nameof(m_baker.TargetMeshFilter)));
 
             // set the properties on the object the serializedobject is inspecting
@@ -43,7 +44,7 @@ namespace StoryLabResearch.AlembicVAT
                 m_baker.UpdateAlembicStreamPlayer();
             }
 
-            // if the selected mesh filter is not a child of an Alemic Stream Player (or does not exist)...
+            // if the selected mesh filter is not a child of an Alembic Stream Player (or does not exist)...
             if (m_baker.TargetAlembicStreamPlayer == null)
             {
                 EditorGUILayout.HelpBox("Add the Alembic model to a scene, then select the child MeshFilter component you want to bake the animation from and assign it to this field.", MessageType.Info);
@@ -68,12 +69,17 @@ namespace StoryLabResearch.AlembicVAT
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.PrefixLabel("Time Range (s)");
                 EditorGUIUtility.labelWidth = 35f;
-                EditorGUILayout.FloatField("from", m_baker.StartTime, GUILayout.MinWidth(80f));
+                m_baker.StartTime = EditorGUILayout.FloatField("from", m_baker.StartTime, GUILayout.MinWidth(80f));
                 EditorGUIUtility.labelWidth = 20f;
-                EditorGUILayout.FloatField("to", m_baker.EndTime, GUILayout.MinWidth(80f));
+                m_baker.EndTime = EditorGUILayout.FloatField("to", m_baker.EndTime, GUILayout.MinWidth(80f));
                 EditorGUIUtility.labelWidth = 0f;
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.MinMaxSlider(ref m_baker.StartTime, ref m_baker.EndTime, 0f, m_baker.TargetAlembicStreamPlayer.Duration);
+
+                EditorGUILayout.Space();
+
+                // === GUI NORMALS REGION ===
+                m_baker.includeNormals = EditorGUILayout.Toggle("Bake vertex normals", m_baker.includeNormals);
 
                 EditorGUILayout.Space();
 
@@ -84,12 +90,18 @@ namespace StoryLabResearch.AlembicVAT
                 GUI.enabled = true;
                 m_automaticOutputName = EditorGUILayout.Toggle("Automatic output name", m_automaticOutputName);
 
+                EditorGUILayout.Space();
+
+                // === GUI TEXTURES ONLY REGION ===
+                m_baker.TexturesOnly = EditorGUILayout.Toggle("Textures only", m_baker.TexturesOnly);
+
                 // info boxes when assets already exist
-                if (m_baker.MeshExists) EditorGUILayout.HelpBox($"A mesh already exists at {m_baker.MeshPath}", MessageType.Info);
+                // only display prefab-related info boxes when not in textures only mode
+                if (!m_baker.TexturesOnly && m_baker.MeshExists) EditorGUILayout.HelpBox($"A mesh already exists at {m_baker.MeshPath}", MessageType.Info);
                 if (m_baker.MotionTextureExists) EditorGUILayout.HelpBox($"A motion texture already exists at { m_baker.MotionTexturePath}", MessageType.Info);
                 if (m_baker.NormalTextureExists) EditorGUILayout.HelpBox($"A normal texture already exists at {m_baker.NormalTexturePath}", MessageType.Info);
-                if (m_baker.MaterialExists) EditorGUILayout.HelpBox($"A material already exists at {m_baker.MaterialPath}", MessageType.Info);
-                if (m_baker.PrefabExists) EditorGUILayout.HelpBox($"A prefab already exists at {m_baker.PrefabPath}", MessageType.Info);
+                if (!m_baker.TexturesOnly && m_baker.MaterialExists) EditorGUILayout.HelpBox($"A material already exists at {m_baker.MaterialPath}", MessageType.Info);
+                if (!m_baker.TexturesOnly && m_baker.PrefabExists) EditorGUILayout.HelpBox($"A prefab already exists at {m_baker.PrefabPath}", MessageType.Info);
             }
         }
     }

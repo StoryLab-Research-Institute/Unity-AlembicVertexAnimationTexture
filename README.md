@@ -1,7 +1,7 @@
 # Alembic to Vertex Animation Texture
 ## Description
 
-!! URP ONLY FOR NOW !!
+!!  BRP (NOT TESTED) AND URP ONLY FOR NOW !!
 
 A utility to bake an Alembic animated mesh to a vertex animation texture for more efficient rendering and compatibility with mobile devices. Includes a template shader to play back the animation, and a subshader to allow you to add motion to your own shaders.
 
@@ -50,6 +50,8 @@ Add an Alembic model to the open scene, then drop the mesh you wish to generate 
  - A normals texture
  - A prefab with the mesh with material applied
  
+ Alternatively, if you want to bake additional animiation textures for a model you have already baked, you can select the "Textures Only" checkbox.
+ 
 ## Shader properties
 For simplicity, a single subshader is responsible for the entire animation system. This shader can be controlled using keywords to enable or diasble features as required. This does, however, mean that the material properties window is somewhat cluttered even for a simple shader.
 
@@ -62,12 +64,8 @@ Key notes:
 ## Creating your own shaders
 A subshader is provided to allow you to add motion to your own shaders. If you name the appropriate properties on your custom shader the same as they are named in the subshader, you should be able to swap the placeholder shader on the generated material for your own, and the animation will carry across properly. To make this easier (so you don't need to copy and paste every property), an empty template shader is provided in Packages/StoryLabResearch Alembic VAT/Runtime/Shaders/TemplateVAT for you to duplicate and modify with the features you require.
 
-Because the animation is sampled from a texture, the shader can interpolate between samples in the texture providing a free form of frame interpolation for smooth playback with relatively small motion texture sizes. If you wish to play back the animation exactly as it is captured, for example for stylised low frame rate animations, change the VAT_SamplerState filter mode in your custom shader to "Point". Of course, you can also change the texture wrap modes in the sampler, allownig for flexible playback.
-
-For maximum flexibility, you may wish to create your own version of the VAT subgraph and remove the sampler state definition. This will allow you to set the sampler properties independently for each texture, rather than requiring different shaders for these different mode.
-
 ## Intended development
- - Shaders for BRP and HDRP
+ - Shaders for HDRP
  - Workflow to allow the baking of multi-mesh Alembic models
  - Setting to toggle adoption of parent scale and heirarchy (?)
  - Support for multi-material meshes
