@@ -1,4 +1,4 @@
-# Alembic to Vertex Animation Texture
+# Unity Alembic to Vertex Animation Texture
 ## Description
 
 !!  BRP (NOT TESTED) AND URP ONLY FOR NOW !!
