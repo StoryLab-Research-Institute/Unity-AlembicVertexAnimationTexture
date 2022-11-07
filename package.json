@@ -1,13 +1,13 @@
 {
   "name": "com.storylabresearch.alembicvat",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "StoryLabResearch Alembic VAT",
-  "description": "Utility to generate a set of vertex animation textures from an animated Alembic model with consistent topology, to allow playback on unsupported devices",
+  "description": "Utility to generate a set of vertex animation textures from an animated Alembic model with consistent topology, to allow playback on unsupported devices\n\n## CHANGELOG\n\n0.2.1: Updated editor scripts assembly definition to editor only",
   "unity": "2021.3",
   "unityRelease": "4f1",
   "dependencies": {
     "com.unity.formats.alembic": "2.2.2"
- },
+  },
   "author": {
     "name": "Chris Nightingale",
     "email": "StoryLab@aru.ac.uk",
